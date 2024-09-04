@@ -11,6 +11,40 @@ import (
 	sdk "github.com/cosmos/cosmos-sdk/types"
 )
 
+func (k Keeper) AllDeposits(ctx sdk.Context) (deposits []assetstype.DepositsByStaker, err error) {
+	store := prefix.NewStore(ctx.KVStore(k.storeKey), assetstype.KeyPrefixReStakerAssetInfos)
+	iterator := sdk.KVStorePrefixIterator(store, []byte{})
+	defer iterator.Close()
+
+	ret := make([]assetstype.DepositsByStaker, 0)
+	var previousStakerID string
+	for ; iterator.Valid(); iterator.Next() {
+		var stateInfo assetstype.StakerAssetInfo
+		k.cdc.MustUnmarshal(iterator.Value(), &stateInfo)
+		keyList, err := assetstype.ParseJoinedStoreKey(iterator.Key(), 2)
+		if err != nil {
+			return nil, err
+		}
+		stakerID, assetID := keyList[0], keyList[1]
+		if previousStakerID != stakerID {
+			depositsByStaker := assetstype.DepositsByStaker{
+				StakerID: stakerID,
+				Deposits: make([]assetstype.DepositByAsset, 0),
+			}
+			ret = append(ret, depositsByStaker)
+		}
+		index := len(ret) - 1
+		stateInfo.WithdrawableAmount = stateInfo.TotalDepositAmount
+		stateInfo.WaitUnbondingAmount = math.NewInt(0)
+		ret[index].Deposits = append(ret[index].Deposits, assetstype.DepositByAsset{
+			AssetID: assetID,
+			Info:    stateInfo,
+		})
+		previousStakerID = stakerID
+	}
+	return ret, nil
+}
+
 func (k Keeper) GetStakerAssetInfos(ctx sdk.Context, stakerID string) (assetsInfo map[string]*assetstype.StakerAssetInfo, err error) {
 	store := prefix.NewStore(ctx.KVStore(k.storeKey), assetstype.KeyPrefixReStakerAssetInfos)
 	iterator := sdk.KVStorePrefixIterator(store, []byte(stakerID))

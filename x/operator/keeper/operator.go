@@ -212,3 +212,18 @@ func (k *Keeper) GetOptedInOperatorListByAVS(ctx sdk.Context, avsAddr string) ([
 	}
 	return operatorList, nil
 }
+
+// AllOperatorsInfo return the list of all operators' detailed information
+func (k *Keeper) AllOperatorsInfo(ctx sdk.Context) []operatortypes.OperatorInfo {
+	store := prefix.NewStore(ctx.KVStore(k.storeKey), operatortypes.KeyPrefixOperatorInfo)
+	iterator := sdk.KVStorePrefixIterator(store, nil)
+	defer iterator.Close()
+
+	ret := make([]operatortypes.OperatorInfo, 0)
+	for ; iterator.Valid(); iterator.Next() {
+		var operatorInfo operatortypes.OperatorInfo
+		k.cdc.MustUnmarshal(iterator.Value(), &operatorInfo)
+		ret = append(ret, operatorInfo)
+	}
+	return ret
+}

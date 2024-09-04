@@ -70,8 +70,18 @@ func (k Keeper) InitGenesis(
 }
 
 // ExportGenesis returns the module's exported genesis
-func (Keeper) ExportGenesis(sdk.Context) *delegationtype.GenesisState {
-	genesis := delegationtype.DefaultGenesis()
-	// TODO
-	return genesis
+func (k Keeper) ExportGenesis(ctx sdk.Context) *delegationtype.GenesisState {
+	res := delegationtype.GenesisState{}
+	associations, err := k.GetAllAssociations(ctx)
+	if err != nil {
+		panic(err)
+	}
+	res.Associations = associations
+
+	delegations, err := k.AllDelegations(ctx)
+	if err != nil {
+		panic(err)
+	}
+	res.Delegations = delegations
+	return &res
 }

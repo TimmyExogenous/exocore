@@ -53,8 +53,30 @@ func (k Keeper) InitGenesis(ctx sdk.Context, data *types.GenesisState) {
 }
 
 // ExportGenesis returns the module's exported genesis.
-func (Keeper) ExportGenesis(sdk.Context) *types.GenesisState {
+func (k Keeper) ExportGenesis(ctx sdk.Context) *types.GenesisState {
 	res := types.GenesisState{}
-	// TODO
+	params, err := k.GetParams(ctx)
+	if err != nil {
+		panic(err)
+	}
+	res.Params = *params
+
+	allClientChains, err := k.GetAllClientChainInfo(ctx)
+	if err != nil {
+		panic(err)
+	}
+	res.ClientChains = allClientChains
+
+	allAssets, err := k.GetAllStakingAssetsInfoList(ctx)
+	if err != nil {
+		panic(err)
+	}
+	res.Tokens = allAssets
+
+	allDeposits, err := k.AllDeposits(ctx)
+	if err != nil {
+		panic(err)
+	}
+	res.Deposits = allDeposits
 	return &res
 }

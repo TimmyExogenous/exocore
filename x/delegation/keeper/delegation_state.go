@@ -2,6 +2,7 @@ package keeper
 
 import (
 	"fmt"
+	"sort"
 
 	errorsmod "cosmossdk.io/errors"
 	sdkmath "cosmossdk.io/math"
@@ -13,6 +14,62 @@ import (
 )
 
 type DelegationOpFunc func(keys *delegationtype.SingleDelegationInfoReq, amounts *delegationtype.DelegationAmounts) error
+
+func (k Keeper) AllDelegations(ctx sdk.Context) (delegationStates []delegationtype.DelegationsByStaker, err error) {
+	store := prefix.NewStore(ctx.KVStore(k.storeKey), delegationtype.KeyPrefixRestakerDelegationInfo)
+	iterator := sdk.KVStorePrefixIterator(store, []byte{})
+	defer iterator.Close()
+
+	ret := make([]delegationtype.DelegationsByStaker, 0)
+	helpMap := make(map[string]map[string][]delegationtype.KeyValue)
+
+	for ; iterator.Valid(); iterator.Next() {
+		var stateInfo delegationtype.DelegationAmounts
+		k.cdc.MustUnmarshal(iterator.Value(), &stateInfo)
+		keyList, err := assetstype.ParseJoinedStoreKey(iterator.Key(), 3)
+		if err != nil {
+			return nil, err
+		}
+		stakerID, assetID, operator := keyList[0], keyList[1], keyList[2]
+		if _, ok := helpMap[stakerID]; !ok {
+			helpMap[stakerID] = make(map[string][]delegationtype.KeyValue)
+		} else {
+			if _, ok2 := helpMap[stakerID][assetID]; !ok2 {
+				helpMap[stakerID][assetID] = make([]delegationtype.KeyValue, 0)
+			}
+		}
+		if stateInfo.UndelegatableShare.IsPositive() {
+			helpMap[stakerID][assetID] = append(helpMap[stakerID][assetID], delegationtype.KeyValue{
+				Key: operator,
+				Value: &delegationtype.ValueField{
+					Amount: stateInfo.UndelegatableShare.TruncateInt(),
+				},
+			})
+		}
+	}
+	for stakerID, delegationsByAssets := range helpMap {
+		ret = append(ret, delegationtype.DelegationsByStaker{
+			StakerID:    stakerID,
+			Delegations: make([]delegationtype.DelegatedSingleAssetInfo, 0),
+		})
+		index := len(ret) - 1
+		tmpDelegations := ret[index].Delegations
+		for assetID, delegations := range delegationsByAssets {
+			tmpDelegations = append(tmpDelegations, delegationtype.DelegatedSingleAssetInfo{
+				AssetID:            assetID,
+				PerOperatorAmounts: delegations,
+			})
+		}
+		sort.Slice(tmpDelegations, func(i, j int) bool {
+			return tmpDelegations[i].AssetID < tmpDelegations[j].AssetID
+		})
+		ret[index].Delegations = tmpDelegations
+	}
+	sort.Slice(ret, func(i, j int) bool {
+		return ret[i].StakerID < ret[j].StakerID
+	})
+	return ret, nil
+}
 
 // IterateDelegationsForStakerAndAsset processes all operations
 // that require iterating over delegations for a specified staker and asset.
@@ -324,4 +381,19 @@ func (k *Keeper) GetSelfDelegatedOperator(ctx sdk.Context, stakerID string) (str
 		return string(value), nil
 	}
 	return "", nil
+}
+
+func (k *Keeper) GetAllAssociations(ctx sdk.Context) ([]delegationtype.StakerToOperator, error) {
+	store := prefix.NewStore(ctx.KVStore(k.storeKey), delegationtype.KeyPrefixSelfDelegateOperatorByStaker)
+	iterator := sdk.KVStorePrefixIterator(store, []byte{})
+	defer iterator.Close()
+
+	ret := make([]delegationtype.StakerToOperator, 0)
+	for ; iterator.Valid(); iterator.Next() {
+		ret = append(ret, delegationtype.StakerToOperator{
+			StakerID: string(iterator.Key()),
+			Operator: string(iterator.Value()),
+		})
+	}
+	return ret, nil
 }
