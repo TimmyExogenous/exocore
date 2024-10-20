@@ -1,10 +1,11 @@
 package keeper_test
 
 import (
-	"github.com/ethereum/go-ethereum/common/math"
 	"math/big"
 	"strconv"
 	"time"
+
+	"github.com/ethereum/go-ethereum/common/math"
 
 	sdkmath "cosmossdk.io/math"
 	assetskeeper "github.com/ExocoreNetwork/exocore/x/assets/keeper"

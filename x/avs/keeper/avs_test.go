@@ -1,10 +1,11 @@
 package keeper_test
 
 import (
-	"cosmossdk.io/math"
-	assetstypes "github.com/ExocoreNetwork/exocore/x/assets/types"
 	"math/big"
 	"time"
+
+	"cosmossdk.io/math"
+	assetstypes "github.com/ExocoreNetwork/exocore/x/assets/types"
 
 	avstypes "github.com/ExocoreNetwork/exocore/x/avs/keeper"
 	"github.com/ExocoreNetwork/exocore/x/avs/types"
